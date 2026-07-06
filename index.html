@@ -233,7 +233,39 @@
     .mem-label { font-size: 11px; font-weight: 700; color: var(--primary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
     .mem-content { font-size: 13px; line-height: 1.75; }
     .related-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-    .related-chip { background: var(--primary-light); color: var(--primary); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+    .related-chip { background: var(--primary-light); color: var(--primary); border-radius: 10px; padding: 5px 10px; font-size: 12px; font-weight: 600; display: inline-flex; flex-direction: column; gap: 2px; }
+    .related-chip-pos { font-size: 10px; background: rgba(79,70,229,0.18); border-radius: 3px; padding: 1px 4px; font-weight: normal; display: inline-block; }
+    .related-chip-meaning { font-size: 11px; color: #6366f1; font-weight: normal; }
+    .same-affix-chip { background: #fef3c7; color: #92400e; border-radius: 10px; padding: 5px 10px; font-size: 12px; font-weight: 600; display: inline-flex; flex-direction: column; gap: 3px; }
+    .same-affix-breakdown { font-size: 11px; color: #b45309; font-weight: normal; line-height: 1.5; }
+    .same-affix-meaning { font-size: 11px; color: #78350f; font-weight: normal; margin-left: 4px; }
+    .root-clickable { cursor: pointer; color: #92400e; text-decoration: underline dotted #b45309; font-weight: 700; }
+    .root-clickable:active { background: #fde68a; border-radius: 3px; }
+    .root-word-item { padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .root-word-item:last-child { border-bottom: none; }
+    .root-word-breakdown { font-size: 12px; color: #b45309; margin-bottom: 2px; }
+    .root-word-name { font-size: 15px; font-weight: 700; color: #1e293b; }
+    .root-word-meaning { font-size: 13px; color: #6b7280; margin-top: 1px; }
+
+    /* ── 発音注意トグル ── */
+    .pronote-toggle { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 10px; border: 2px solid var(--border); background: white; cursor: pointer; font-size: 14px; font-family: inherit; transition: all 0.2s; margin-bottom: 10px; }
+    .pronote-toggle.active { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
+    .pronote-badge-small { background: #f59e0b; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+
+    /* ── フラッシュカード改善 ── */
+    .fc-back-imgs { display: flex; gap: 6px; width: 100%; margin-bottom: 10px; overflow-x: auto; padding-bottom: 4px; }
+    .fc-back-imgs img { flex-shrink: 0; width: calc(33.33% - 4px); min-width: 90px; height: 90px; object-fit: cover; border-radius: 8px; }
+    .fc-progress { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 6px; }
+    .fc-mode-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .fc-mode-btn { flex: 1; padding: 9px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-size: 13px; font-family: inherit; cursor: pointer; }
+    .fc-mode-btn.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 700; }
+    .fc-judge-row { display: flex; gap: 10px; margin-top: 12px; }
+    .fc-judge-btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; transition: transform 0.1s; }
+    .fc-judge-btn:active { transform: scale(0.96); }
+    .fc-btn-mastered { background: #10b981; color: white; }
+    .fc-btn-again { background: #f3f4f6; color: var(--text); }
+    .fc-pronote-fc { background: #f59e0b; color: white; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-top: 8px; display: inline-block; }
+    .wl-pronote { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-left: 6px; }
 
     /* ── Image grid ── */
     .img-grid {
@@ -503,10 +535,19 @@
         <div class="mem-content" id="memTip"></div>
       </div>
       <div class="mem-block">
-        <div class="mem-label">🔗 関連語</div>
+        <div class="mem-label">🔗 関連語（品詞・派生語）</div>
         <div class="related-chips" id="memRelated"></div>
       </div>
+      <div class="mem-block" id="memSameAffixBlock" style="display:none;">
+        <div class="mem-label">🧩 同じ接辞の単語</div>
+        <div class="related-chips" id="memSameAffix"></div>
+      </div>
     </div>
+
+    <!-- 発音注意トグル -->
+    <button class="pronote-toggle" id="pronoteToggle" onclick="togglePronNote()" style="display:none;">
+      🔔 <span id="pronoteLabel">発音注意としてタグを付ける</span>
+    </button>
 
     <!-- Image search card -->
     <div class="card" id="imgCard" style="display:none;">
@@ -582,6 +623,17 @@
   </div>
 </div>
 
+<!-- ── Root Popup Modal ── -->
+<div class="modal-overlay" id="rootPopupModal" onclick="closeRootPopupOnOverlay(event)">
+  <div class="modal">
+    <div class="modal-title" id="rootPopupTitle"></div>
+    <div id="rootPopupContent" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-btns" style="margin-top:12px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeRootPopup()">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -596,11 +648,13 @@ let isRecording       = false;
 let recognition       = null;
 let currentWord       = '';
 let currentWordInfo   = null;
-let selectedImageUrls = [];   // up to 3 Wikimedia URLs
-let manualImageBase64 = '';   // fallback manual image
+let selectedImageUrls = [];
+let manualImageBase64 = '';
+let currentPronNote   = false;
 let fcOrder           = [];
 let fcIndex           = 0;
 let fcFlipped         = false;
+let fcMode            = 'all';   // 'all' | 'unmastered'
 
 // ══════════════════════════════════════════════
 // SPEECH RECOGNITION
@@ -773,7 +827,8 @@ async function fetchWordInfo(word) {
   "suffix": "接尾語とその意味（例: -tion（名詞化）。なければ「なし」）",
   "etymology": "語源・由来（1〜2文で日本語）",
   "mnemonic": "日本人向けゴロ合わせや記憶術（具体的・ユニークに）",
-  "relatedWords": ["関連語または派生語1", "関連語2", "関連語3"],
+  "relatedWords": [{"word": "関連語1", "pos": "品詞（名詞/動詞/形容詞/副詞）", "meaning": "日本語訳"}, {"word": "関連語2", "pos": "品詞", "meaning": "日本語訳"}, {"word": "関連語3", "pos": "品詞", "meaning": "日本語訳"}],
+  "sameAffixWords": [{"word": "同接辞の単語1", "pos": "品詞", "shared": "共通の接辞（例: con-（共に））", "rootMeaning": "残りの語根の意味（例: struct（建てる））", "meaning": "その単語の日本語訳"}, {"word": "単語2", "pos": "品詞", "shared": "共通の接辞", "rootMeaning": "語根の意味", "meaning": "日本語訳"}],
   "memoryTip": "視覚的・感覚的に覚えられるユニークなヒント（1〜2文）",
   "imageSearchTerms": ["この単語の意味を視覚的に表す英語フレーズ1", "英語フレーズ2"],
   "imageSearchTermsJa": ["日本語フレーズ1（例: 書類 提出）", "日本語フレーズ2（例: 手渡す ビジネス）"]
@@ -818,14 +873,77 @@ function renderWordInfo(word, info) {
   document.getElementById('memMnemonic').textContent = info.mnemonic || '';
   document.getElementById('memTip').textContent = info.memoryTip || '';
 
+  // 関連語（品詞＋意味付き・新旧両フォーマット対応）
   const relEl = document.getElementById('memRelated');
   relEl.innerHTML = '';
-  (info.relatedWords || []).forEach(w => {
+  (info.relatedWords || []).forEach(item => {
     const chip = document.createElement('span');
     chip.className = 'related-chip';
-    chip.textContent = w;
+    if (typeof item === 'string') {
+      chip.textContent = item;
+    } else {
+      chip.innerHTML = `
+        <span>${esc(item.word)} <span class="related-chip-pos">${esc(item.pos)}</span></span>
+        ${item.meaning ? `<span class="related-chip-meaning">${esc(item.meaning)}</span>` : ''}
+      `;
+    }
     relEl.appendChild(chip);
   });
+
+  // 同接辞グループ（接辞＋語根の意味付き）
+  const sameAffixEl = document.getElementById('memSameAffix');
+  const sameAffixBlock = document.getElementById('memSameAffixBlock');
+  sameAffixEl.innerHTML = '';
+  const sameAffixWords = info.sameAffixWords || [];
+  if (sameAffixWords.length) {
+    sameAffixWords.forEach(item => {
+      const chip = document.createElement('span');
+      chip.className = 'same-affix-chip';
+
+      // 上段: 単語名 + 品詞 + 意味
+      const wordRow = document.createElement('span');
+      wordRow.innerHTML = `${esc(item.word)} <span class="related-chip-pos">${esc(item.pos)}</span>`;
+      if (item.meaning) {
+        const mSpan = document.createElement('span');
+        mSpan.className = 'same-affix-meaning';
+        mSpan.textContent = `：${item.meaning}`;
+        wordRow.appendChild(mSpan);
+      }
+      chip.appendChild(wordRow);
+
+      // 下段: 接辞分解（語根部分はタップ可能）
+      if (item.shared || item.rootMeaning) {
+        const bdRow = document.createElement('span');
+        bdRow.className = 'same-affix-breakdown';
+        if (item.shared) {
+          bdRow.appendChild(document.createTextNode(item.shared));
+        }
+        if (item.rootMeaning) {
+          if (item.shared) bdRow.appendChild(document.createTextNode(' + '));
+          const rootKey = item.rootMeaning.split('（')[0].trim();
+          const rootSpan = document.createElement('span');
+          rootSpan.className = 'root-clickable';
+          rootSpan.dataset.rootKey = rootKey;
+          rootSpan.dataset.rootDisplay = item.rootMeaning;
+          rootSpan.textContent = item.rootMeaning;
+          bdRow.appendChild(rootSpan);
+        }
+        chip.appendChild(bdRow);
+      }
+
+      sameAffixEl.appendChild(chip);
+    });
+    sameAffixBlock.style.display = 'block';
+  } else {
+    sameAffixBlock.style.display = 'none';
+  }
+
+  // 発音注意トグルをリセット
+  currentPronNote = false;
+  const toggle = document.getElementById('pronoteToggle');
+  toggle.classList.remove('active');
+  document.getElementById('pronoteLabel').textContent = '発音注意としてタグを付ける';
+  toggle.style.display = 'flex';
 
   document.getElementById('memCard').style.display = 'block';
   document.getElementById('imgCard').style.display = 'block';
@@ -1086,9 +1204,12 @@ function saveWord() {
     etymology:         currentWordInfo.etymology || '',
     mnemonic:          currentWordInfo.mnemonic || '',
     relatedWords:      currentWordInfo.relatedWords || [],
+    sameAffixWords:    currentWordInfo.sameAffixWords || [],
     memoryTip:         currentWordInfo.memoryTip || '',
     selectedImageUrls: [...selectedImageUrls],
-    imageBase64:       manualImageBase64,   // 手動フォールバック
+    imageBase64:       manualImageBase64,
+    pronunciationNote: currentPronNote,
+    mastered:          false,
     addedAt:           new Date().toISOString(),
   };
   words.unshift(entry);
@@ -1109,6 +1230,15 @@ function deleteWord(id) {
   localStorage.setItem(STORE_KEY, JSON.stringify(words));
   renderWordList(document.querySelector('.search-box') ? document.querySelector('.search-box').value : '');
   showToast('削除しました');
+}
+
+function togglePronNote() {
+  currentPronNote = !currentPronNote;
+  const toggle = document.getElementById('pronoteToggle');
+  toggle.classList.toggle('active', currentPronNote);
+  document.getElementById('pronoteLabel').textContent = currentPronNote
+    ? '🔔 発音注意タグ付き（タップで解除）'
+    : '発音注意としてタグを付ける';
 }
 
 function resetRecordPanel() {
@@ -1172,7 +1302,7 @@ function renderWordList(query = '') {
     const body = document.createElement('div');
     body.className = 'wl-body';
     body.innerHTML = `
-      <div class="wl-word">${esc(w.word)}</div>
+      <div class="wl-word">${esc(w.word)}${w.pronunciationNote ? '<span class="wl-pronote">🔔発音注意</span>' : ''}${w.mastered ? '<span class="wl-pronote" style="background:#d1fae5;color:#065f46">✓習得済</span>' : ''}</div>
       <div class="wl-reading">${w.pronunciation ? `/${esc(w.pronunciation)}/` : ''} ${esc(w.partOfSpeech || '')}</div>
       <div class="wl-meaning">${esc(w.meaningJa || '')}</div>
       <div class="wl-date">${date}</div>
@@ -1215,7 +1345,33 @@ function renderWordList(query = '') {
     if (w.etymology) detailHtml += `<div class="wl-detail-block"><div class="wl-detail-label">🌱 語源</div>${esc(w.etymology)}</div>`;
     if (w.mnemonic)  detailHtml += `<div class="wl-detail-block"><div class="wl-detail-label">💡 ゴロ・記憶術</div>${esc(w.mnemonic)}</div>`;
     if (w.memoryTip) detailHtml += `<div class="wl-detail-block"><div class="wl-detail-label">✨ 覚え方のヒント</div>${esc(w.memoryTip)}</div>`;
-    if (w.relatedWords && w.relatedWords.length) detailHtml += `<div class="wl-detail-block"><div class="wl-detail-label">🔗 関連語</div>${w.relatedWords.map(r => `<span class="wl-related-chip">${esc(r)}</span>`).join('')}</div>`;
+    if (w.relatedWords && w.relatedWords.length) {
+      const relChips = w.relatedWords.map(r => {
+        if (typeof r === 'string') return `<span class="wl-related-chip">${esc(r)}</span>`;
+        return `<span class="wl-related-chip" style="flex-direction:column;align-items:flex-start;border-radius:8px">
+          <span>${esc(r.word)} <small style="opacity:0.65">${esc(r.pos)}</small></span>
+          ${r.meaning ? `<small style="color:#6366f1">${esc(r.meaning)}</small>` : ''}
+        </span>`;
+      }).join('');
+      detailHtml += `<div class="wl-detail-block"><div class="wl-detail-label">🔗 関連語</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${relChips}</div></div>`;
+    }
+    if (w.sameAffixWords && w.sameAffixWords.length) {
+      const affixChips = w.sameAffixWords.map(r => {
+        const rootKey = r.rootMeaning ? r.rootMeaning.split('（')[0].trim() : '';
+        const bdParts = [];
+        if (r.shared) bdParts.push(esc(r.shared));
+        if (r.rootMeaning) {
+          const rootSpan = `<span class="root-clickable" data-root-key="${esc(rootKey)}" data-root-display="${esc(r.rootMeaning)}">${esc(r.rootMeaning)}</span>`;
+          bdParts.push((r.shared ? '+ ' : '') + rootSpan);
+        }
+        const bdHtml = bdParts.join(' ');
+        return `<span class="wl-related-chip" style="background:#fef3c7;color:#92400e;flex-direction:column;align-items:flex-start;border-radius:8px">
+          <span>${esc(r.word)} <small style="opacity:0.65">${esc(r.pos)}</small>${r.meaning ? `<small style="color:#78350f;margin-left:3px">：${esc(r.meaning)}</small>` : ''}</span>
+          ${bdHtml ? `<small style="color:#b45309">${bdHtml}</small>` : ''}
+        </span>`;
+      }).join('');
+      detailHtml += `<div class="wl-detail-block"><div class="wl-detail-label">🧩 同じ接辞の単語</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${affixChips}</div></div>`;
+    }
 
     detail.innerHTML = detailHtml;
     card.appendChild(detail);
@@ -1234,14 +1390,26 @@ function renderWordList(query = '') {
 // ══════════════════════════════════════════════
 // FLASHCARD
 // ══════════════════════════════════════════════
+function getFCWords() {
+  const all = getWords();
+  return fcMode === 'unmastered' ? all.filter(w => !w.mastered) : all;
+}
+
 function initFlashcard() {
-  const words = getWords();
+  const words = getFCWords();
+  const allWords = getWords();
+  const masteredCount = allWords.filter(w => w.mastered).length;
+
   if (!words.length) {
+    const msg = fcMode === 'unmastered'
+      ? '🎉 未習得の単語がありません！全て習得済みです。'
+      : 'まず「録音・登録」タブで単語を登録してください';
     document.getElementById('flashPanel').innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🃏</div>
-        <div class="empty-msg">まず「録音・登録」タブで単語を登録してください</div>
-      </div>`;
+      <div class="fc-mode-bar">
+        <button class="fc-mode-btn ${fcMode==='all'?'active':''}" onclick="setFCMode('all')">全て（${allWords.length}）</button>
+        <button class="fc-mode-btn ${fcMode==='unmastered'?'active':''}" onclick="setFCMode('unmastered')">未習得（${allWords.length - masteredCount}）</button>
+      </div>
+      <div class="empty-state"><div class="empty-icon">🃏</div><div class="empty-msg">${msg}</div></div>`;
     return;
   }
   fcOrder = shuffle([...words]);
@@ -1250,47 +1418,71 @@ function initFlashcard() {
   renderFC();
 }
 
+function setFCMode(mode) {
+  fcMode = mode;
+  initFlashcard();
+}
+
 function renderFC() {
+  const allWords = getWords();
+  const masteredCount = allWords.filter(w => w.mastered).length;
   const w = fcOrder[fcIndex % fcOrder.length];
   const total = fcOrder.length;
   const num = (fcIndex % total) + 1;
 
-  // 画像（Wikimedia URL 優先、フォールバックは base64）
   const imgSrcs = (w.selectedImageUrls && w.selectedImageUrls.length)
-    ? w.selectedImageUrls
-    : (w.imageBase64 ? [w.imageBase64] : []);
-
+    ? w.selectedImageUrls : (w.imageBase64 ? [w.imageBase64] : []);
   const backImgs = imgSrcs.length
     ? `<div class="fc-back-imgs">${imgSrcs.map(u => `<img src="${esc(u)}" alt="${esc(w.word)}">`).join('')}</div>`
     : '';
-
   const mnemonicHtml = w.mnemonic ? `<div class="fc-tip-box">💡 ${esc(w.mnemonic)}</div>` : '';
+  const pronNoteBadge = w.pronunciationNote ? `<div class="fc-pronote-fc">🔔 発音注意</div>` : '';
 
   document.getElementById('flashPanel').innerHTML = `
-    <div class="fc-meta">${num} / ${total}</div>
+    <div class="fc-mode-bar">
+      <button class="fc-mode-btn ${fcMode==='all'?'active':''}" onclick="setFCMode('all')">全て（${allWords.length}）</button>
+      <button class="fc-mode-btn ${fcMode==='unmastered'?'active':''}" onclick="setFCMode('unmastered')">未習得（${allWords.length - masteredCount}）</button>
+    </div>
+    <div class="fc-progress">習得済み ${masteredCount} / ${allWords.length} 語　　${num} / ${total} 枚目</div>
     <div class="fc-tap-hint">カードをタップして裏返す</div>
     <div class="fc-scene">
       <div class="fc-card" id="fcCard" onclick="flipFC()">
         <div class="fc-face fc-front">
           <div class="fc-word-big">${esc(w.word)}</div>
-          <button class="fc-front-speak" onclick="event.stopPropagation();speakText(${JSON.stringify(w.word)})">🔊 発音を聞く</button>
+          ${pronNoteBadge}
+          <button class="fc-front-speak" onclick="event.stopPropagation();speakText('${w.word.replace(/'/g,"\\'")}')">🔊 発音を聞く</button>
           <div class="fc-flip-hint">タップして答えを確認</div>
         </div>
         <div class="fc-face fc-back">
           ${backImgs}
-          <div class="fc-reading">${w.pronunciation ? `/${esc(w.pronunciation)}/` : ''} ${esc(w.partOfSpeech)}</div>
-          <div class="fc-meaning-big">${esc(w.meaningJa)}</div>
-          ${w.exampleEn ? `<div class="fc-example-text"><em>${esc(w.exampleEn)}</em><br>${esc(w.exampleJa)}</div>` : ''}
+          <div class="fc-reading">${w.pronunciation ? `/${esc(w.pronunciation)}/` : ''} ${esc(w.partOfSpeech || '')}</div>
+          <div class="fc-meaning-big">${esc(w.meaningJa || '')}</div>
+          ${w.exampleEn ? `<div class="fc-example-text"><em>${esc(w.exampleEn)}</em><br>${esc(w.exampleJa || '')}</div>` : ''}
           ${mnemonicHtml}
         </div>
       </div>
     </div>
-    <div class="fc-controls">
-      <button class="btn btn-primary" onclick="nextFC()">次の単語 →</button>
-      <button class="btn btn-ghost" onclick="initFlashcard()">🔀 シャッフル</button>
+    <div class="fc-judge-row">
+      <button class="fc-judge-btn fc-btn-again" onclick="judgeFC(false)">△ まだ</button>
+      <button class="fc-judge-btn fc-btn-mastered" onclick="judgeFC(true)">✓ 覚えた！</button>
+    </div>
+    <div style="text-align:center;margin-top:10px;">
+      <button class="btn btn-ghost btn-sm" onclick="initFlashcard()">🔀 シャッフル</button>
     </div>
   `;
   fcFlipped = false;
+}
+
+function judgeFC(mastered) {
+  const w = fcOrder[fcIndex % fcOrder.length];
+  const words = getWords();
+  const idx = words.findIndex(x => x.id === w.id);
+  if (idx !== -1) {
+    words[idx].mastered = mastered;
+    localStorage.setItem(STORE_KEY, JSON.stringify(words));
+    if (mastered) showToast('✓ 習得済みにしました');
+  }
+  nextFC();
 }
 
 function flipFC() {
@@ -1302,6 +1494,11 @@ function flipFC() {
 function nextFC() {
   fcIndex++;
   if (fcIndex >= fcOrder.length) {
+    if (fcMode === 'unmastered') {
+      initFlashcard();
+      showToast('🎉 未習得カードを全て確認しました！');
+      return;
+    }
     fcOrder = shuffle(fcOrder);
     fcIndex = 0;
     showToast('🎉 全カードを確認しました！シャッフルして再スタート');
@@ -1369,6 +1566,67 @@ function showToast(msg) {
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ══════════════════════════════════════════════
+// ROOT POPUP
+// ══════════════════════════════════════════════
+document.addEventListener('click', e => {
+  const rootEl = e.target.closest('.root-clickable');
+  if (rootEl) {
+    e.stopPropagation();
+    showRootPopup(rootEl.dataset.rootKey, rootEl.dataset.rootDisplay);
+  }
+});
+
+async function fetchRootWords(rootKey, rootDisplay) {
+  const cacheKey = `root_cache_${rootKey}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const system = 'あなたは英語語彙教師です。JSONのみを返してください。余計なテキスト不要。';
+  const prompt = `英語の語根「${rootDisplay}」を含む代表的な英単語を5〜7個教えてください。
+各単語の接頭語（あれば）・語根分解・日本語意味・品詞を以下のJSON形式で：
+{
+  "words": [
+    {"word": "construct", "prefix": "con-（共に）", "meaning": "建設する", "pos": "動詞"},
+    {"word": "instruct", "prefix": "in-（中に）", "meaning": "指導する", "pos": "動詞"}
+  ]
+}
+接頭語がない場合は prefix を空文字にしてください。`;
+
+  const text = await callClaude([{role: 'user', content: prompt}], system, 700);
+  const json = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
+  sessionStorage.setItem(cacheKey, JSON.stringify(json));
+  return json;
+}
+
+async function showRootPopup(rootKey, rootDisplay) {
+  const modal = document.getElementById('rootPopupModal');
+  document.getElementById('rootPopupTitle').textContent = `${rootDisplay} を含む単語`;
+  const content = document.getElementById('rootPopupContent');
+  content.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7280;">読み込み中…</div>';
+  modal.classList.add('open');
+  try {
+    const data = await fetchRootWords(rootKey, rootDisplay);
+    content.innerHTML = '';
+    data.words.forEach(w => {
+      const item = document.createElement('div');
+      item.className = 'root-word-item';
+      const breakdown = w.prefix ? `${w.prefix} + ${rootDisplay}` : rootDisplay;
+      item.innerHTML = `
+        <div class="root-word-breakdown">${esc(breakdown)}</div>
+        <div><span class="root-word-name">${esc(w.word)}</span> <span class="related-chip-pos">${esc(w.pos || '')}</span></div>
+        <div class="root-word-meaning">${esc(w.meaning)}</div>
+      `;
+      content.appendChild(item);
+    });
+  } catch(err) {
+    content.innerHTML = `<div style="color:#ef4444;padding:12px;">エラー: ${esc(err.message)}</div>`;
+  }
+}
+
+function closeRootPopup() { document.getElementById('rootPopupModal').classList.remove('open'); }
+function closeRootPopupOnOverlay(e) { if (e.target === e.currentTarget) closeRootPopup(); }
 
 // ══════════════════════════════════════════════
 // INIT

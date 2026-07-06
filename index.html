@@ -815,7 +815,7 @@ async function fetchWordInfo(word) {
   document.getElementById('registerBtn').style.display = 'none';
   document.getElementById('errorBox').style.display = 'none';
 
-  const system = 'あなたは英語辞書AIです。指定された英単語の情報を正確なJSONだけで返してください。前後の説明文は一切不要です。';
+  const system = 'あなたは英語辞書AIです。指定された英単語の情報を正確なJSONだけで返してください。前後の説明文は一切不要です。すべての文字列値（日本語も含む）は必ずダブルクォートで囲んでください。JSONの外に文字を追加しないでください。';
   const prompt = `英単語「${word}」について、以下のJSON形式で情報を返してください（すべて日本語で）:
 {
   "pronunciation": "IPA発音記号（例: ˈæpəl）",
@@ -844,7 +844,7 @@ imageSearchTermsのルール：
     const text = await callClaude([{ role: 'user', content: prompt }], system);
     const m = text.match(/\{[\s\S]*\}/);
     if (!m) throw new Error('情報の取得に失敗しました。もう一度お試しください。');
-    currentWordInfo = JSON.parse(m[0]);
+    currentWordInfo = parseClaudeJSON(m[0]);
     renderWordInfo(word, currentWordInfo);
   } catch(e) {
     document.getElementById('loadingCard').style.display = 'none';
@@ -1567,6 +1567,13 @@ function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function parseClaudeJSON(s) {
+  try { return JSON.parse(s); } catch(_) {}
+  // 末尾カンマを除去して再試行
+  const fixed = s.replace(/,(\s*[}\]])/g, '$1');
+  return JSON.parse(fixed);
+}
+
 // ══════════════════════════════════════════════
 // ROOT POPUP
 // ══════════════════════════════════════════════
@@ -1595,7 +1602,7 @@ async function fetchRootWords(rootKey, rootDisplay) {
 接頭語がない場合は prefix を空文字にしてください。`;
 
   const text = await callClaude([{role: 'user', content: prompt}], system, 700);
-  const json = JSON.parse(text.match(/\{[\s\S]*\}/)[0]);
+  const json = parseClaudeJSON(text.match(/\{[\s\S]*\}/)[0]);
   sessionStorage.setItem(cacheKey, JSON.stringify(json));
   return json;
 }

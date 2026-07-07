@@ -1619,4 +1619,89 @@ function showToast(msg) {
 
 // ══════════════════════════════════════════════
 // UTILS
-// ═══════════════
+// ══════════════════════════════════════════════
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function parseClaudeJSON(s) {
+  try { return JSON.parse(s); } catch(_) {}
+  // 末尾カンマを除去して再試行
+  const fixed = s.replace(/,(\s*[}\]])/g, '$1');
+  return JSON.parse(fixed);
+}
+
+// ══════════════════════════════════════════════
+// ROOT POPUP
+// ══════════════════════════════════════════════
+document.addEventListener('click', e => {
+  const rootEl = e.target.closest('.root-clickable');
+  if (rootEl) {
+    e.stopPropagation();
+    showRootPopup(rootEl.dataset.rootKey, rootEl.dataset.rootDisplay);
+  }
+});
+
+async function fetchRootWords(rootKey, rootDisplay) {
+  const cacheKey = `root_cache_${rootKey}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const system = 'あなたは英語語彙教師です。JSONのみを返してください。余計なテキスト不要。';
+  const prompt = `英語の語根「${rootDisplay}」を含む代表的な英単語を5〜7個教えてください。
+各単語の接頭語（あれば）・語根分解・日本語意味・品詞を以下のJSON形式で：
+{
+  "words": [
+    {"word": "construct", "prefix": "con-（共に）", "meaning": "建設する", "pos": "動詞"},
+    {"word": "instruct", "prefix": "in-（中に）", "meaning": "指導する", "pos": "動詞"}
+  ]
+}
+接頭語がない場合は prefix を空文字にしてください。`;
+
+  const text = await callClaude([{role: 'user', content: prompt}], system, 700);
+  const json = parseClaudeJSON(text.match(/\{[\s\S]*\}/)[0]);
+  sessionStorage.setItem(cacheKey, JSON.stringify(json));
+  return json;
+}
+
+async function showRootPopup(rootKey, rootDisplay) {
+  const modal = document.getElementById('rootPopupModal');
+  document.getElementById('rootPopupTitle').textContent = `${rootDisplay} を含む単語`;
+  const content = document.getElementById('rootPopupContent');
+  content.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7280;">読み込み中…</div>';
+  modal.classList.add('open');
+  try {
+    const data = await fetchRootWords(rootKey, rootDisplay);
+    content.innerHTML = '';
+    data.words.forEach(w => {
+      const item = document.createElement('div');
+      item.className = 'root-word-item';
+      const breakdown = w.prefix ? `${w.prefix} + ${rootDisplay}` : rootDisplay;
+      item.innerHTML = `
+        <div class="root-word-breakdown">${esc(breakdown)}</div>
+        <div><span class="root-word-name">${esc(w.word)}</span> <span class="related-chip-pos">${esc(w.pos || '')}</span></div>
+        <div class="root-word-meaning">${esc(w.meaning)}</div>
+      `;
+      content.appendChild(item);
+    });
+  } catch(err) {
+    content.innerHTML = `<div style="color:#ef4444;padding:12px;">エラー: ${esc(err.message)}</div>`;
+  }
+}
+
+function closeRootPopup() { document.getElementById('rootPopupModal').classList.remove('open'); }
+function closeRootPopupOnOverlay(e) { if (e.target === e.currentTarget) closeRootPopup(); }
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+
+if (!SpeechRec) {
+  showFallback('このブラウザは音声認識に対応していません（Chrome 推奨）。テキスト入力をご使用ください。');
+}
+if (!getApiKey()) {
+  setTimeout(() => showToast('⚙️ まず右上からAPIキーを設定してください'), 600);
+}
+</script>
+</body>
+</html>

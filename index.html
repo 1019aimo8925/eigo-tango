@@ -267,6 +267,12 @@
     .fc-pronote-fc { background: #f59e0b; color: white; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-top: 8px; display: inline-block; }
     .wl-pronote { background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-left: 6px; }
     .mem-loading { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; padding: 12px 0; }
+    .mem-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+    .mem-label-row .mem-label { margin-bottom: 0; }
+    .regen-btn { font-size: 11px; padding: 2px 7px; border: 1px solid var(--border); border-radius: 6px; background: white; cursor: pointer; color: var(--text-muted); margin-left: 3px; white-space: nowrap; font-family: inherit; }
+    .regen-btn:active { background: var(--primary-light); }
+    .mem-edit-area { width: 100%; margin-top: 6px; padding: 8px; border: 1.5px solid var(--primary); border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 52px; box-sizing: border-box; }
+    .mem-edit-save { margin-top: 5px; font-size: 12px; padding: 5px 14px; }
     .memo-area { width: 100%; min-height: 72px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-family: inherit; resize: vertical; box-sizing: border-box; transition: border-color 0.2s; }
     .memo-area:focus { border-color: var(--primary); outline: none; }
 
@@ -481,6 +487,7 @@
       <div class="mic-center">
         <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎤</button>
         <div class="mic-label" id="micLabel">ボタンを押して英単語を話してください</div>
+        <button class="btn btn-ghost btn-sm" id="textToggleBtn" onclick="toggleTextInput()" style="margin-top:10px; font-size:12px;">⌨️ 文字で入力する</button>
       </div>
       <div class="text-fallback" id="textFallback" style="display:none;">
         <input type="text" id="textInput" placeholder="英単語を入力（例: apple）" onkeydown="if(event.key==='Enter')searchByText()" />
@@ -639,6 +646,38 @@
     <div id="rootPopupContent" style="max-height:60vh;overflow-y:auto;"></div>
     <div class="modal-btns" style="margin-top:12px;">
       <button class="btn btn-ghost" style="flex:1;" onclick="closeRootPopup()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Word Modal ── -->
+<div class="modal-overlay" id="editWordModal" onclick="closeEditWordOnOverlay(event)">
+  <div class="modal" style="max-height:85vh; overflow-y:auto;">
+    <div class="modal-title">✏️ 単語を編集</div>
+    <input type="hidden" id="editWordId" />
+    <div class="modal-label">単語（英語）</div>
+    <input type="text" id="editWord" style="width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; box-sizing:border-box; margin-bottom:10px;" />
+    <div class="modal-label">日本語訳</div>
+    <input type="text" id="editMeaningJa" style="width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; box-sizing:border-box; margin-bottom:10px;" />
+    <div class="modal-label">例文（英語）</div>
+    <input type="text" id="editExampleEn" style="width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; box-sizing:border-box; margin-bottom:10px;" />
+    <div class="modal-label">例文（日本語）</div>
+    <input type="text" id="editExampleJa" style="width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; box-sizing:border-box; margin-bottom:10px;" />
+    <div class="modal-label">語源・由来</div>
+    <textarea class="memo-area" id="editEtymology" style="min-height:60px; margin-bottom:10px;"></textarea>
+    <div class="modal-label">接頭語</div>
+    <input type="text" id="editPrefix" style="width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; box-sizing:border-box; margin-bottom:10px;" />
+    <div class="modal-label">接尾語</div>
+    <input type="text" id="editSuffix" style="width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; box-sizing:border-box; margin-bottom:10px;" />
+    <div class="modal-label">ゴロ・記憶術</div>
+    <textarea class="memo-area" id="editMnemonic" style="min-height:60px; margin-bottom:10px;"></textarea>
+    <div class="modal-label">覚え方のヒント</div>
+    <textarea class="memo-area" id="editMemoryTip" style="min-height:60px; margin-bottom:10px;"></textarea>
+    <div class="modal-label">📝 メモ</div>
+    <textarea class="memo-area" id="editMemo" style="min-height:60px; margin-bottom:10px;"></textarea>
+    <div class="modal-btns" style="margin-top:16px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="saveEditWord()">保存</button>
+      <button class="btn btn-ghost" onclick="closeEditWord()">キャンセル</button>
     </div>
   </div>
 </div>
@@ -914,17 +953,47 @@ function renderWordMemory(info) {
   memCard.innerHTML = `
     <div class="card-title">📚 暗記サポート</div>
     <div class="mem-block">
-      <div class="mem-label">🌱 語源・接辞</div>
+      <div class="mem-label-row">
+        <span class="mem-label">🌱 語源・接辞</span>
+        <span>
+          <button class="regen-btn" onclick="regenSection('affix')">🔄 別案</button>
+          <button class="regen-btn" onclick="editSection('affix')">✏️ 修正</button>
+        </span>
+      </div>
       <div class="mem-content" id="memEtym"></div>
       <div class="mem-content" id="memAffix" style="margin-top:3px;"></div>
+      <div id="editArea_affix" style="display:none;">
+        <textarea class="mem-edit-area" id="editInput_affix" placeholder="語源や接辞を自由に書き直せます"></textarea>
+        <button class="btn btn-primary btn-sm mem-edit-save" onclick="applyEdit('affix')">更新</button>
+      </div>
     </div>
     <div class="mem-block">
-      <div class="mem-label">💡 ゴロ・記憶術</div>
+      <div class="mem-label-row">
+        <span class="mem-label">💡 ゴロ・記憶術</span>
+        <span>
+          <button class="regen-btn" onclick="regenSection('mnemonic')">🔄 別案</button>
+          <button class="regen-btn" onclick="editSection('mnemonic')">✏️ 修正</button>
+        </span>
+      </div>
       <div class="mem-content" id="memMnemonic"></div>
+      <div id="editArea_mnemonic" style="display:none;">
+        <textarea class="mem-edit-area" id="editInput_mnemonic"></textarea>
+        <button class="btn btn-primary btn-sm mem-edit-save" onclick="applyEdit('mnemonic')">更新</button>
+      </div>
     </div>
     <div class="mem-block">
-      <div class="mem-label">✨ 覚え方のヒント</div>
+      <div class="mem-label-row">
+        <span class="mem-label">✨ 覚え方のヒント</span>
+        <span>
+          <button class="regen-btn" onclick="regenSection('tip')">🔄 別案</button>
+          <button class="regen-btn" onclick="editSection('tip')">✏️ 修正</button>
+        </span>
+      </div>
       <div class="mem-content" id="memTip"></div>
+      <div id="editArea_tip" style="display:none;">
+        <textarea class="mem-edit-area" id="editInput_tip"></textarea>
+        <button class="btn btn-primary btn-sm mem-edit-save" onclick="applyEdit('tip')">更新</button>
+      </div>
     </div>
     <div class="mem-block">
       <div class="mem-label">🔗 関連語（品詞・派生語）</div>
@@ -1378,7 +1447,13 @@ function renderWordList(query = '') {
       if (confirm('「' + w.word + '」を削除しますか？')) deleteWord(w.id);
     });
 
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-ghost btn-sm';
+    editBtn.textContent = '✏️ 編集';
+    editBtn.addEventListener('click', e => { e.stopPropagation(); openEditWord(w.id); });
+
     actions.appendChild(speakBtn);
+    actions.appendChild(editBtn);
     actions.appendChild(delBtn);
     body.appendChild(actions);
     main.appendChild(body);
@@ -1629,6 +1704,145 @@ function parseClaudeJSON(s) {
   // 末尾カンマを除去して再試行
   const fixed = s.replace(/,(\s*[}\]])/g, '$1');
   return JSON.parse(fixed);
+}
+
+// ══════════════════════════════════════════════
+// TEXT INPUT TOGGLE
+// ══════════════════════════════════════════════
+function toggleTextInput() {
+  const fb = document.getElementById('textFallback');
+  const btn = document.getElementById('textToggleBtn');
+  const isHidden = !fb.style.display || fb.style.display === 'none';
+  fb.style.display = isHidden ? 'flex' : 'none';
+  btn.textContent = isHidden ? '🎤 マイクに戻す' : '⌨️ 文字で入力する';
+}
+
+// ══════════════════════════════════════════════
+// EDIT WORD
+// ══════════════════════════════════════════════
+function openEditWord(id) {
+  const w = getWords().find(x => x.id === id);
+  if (!w) return;
+  document.getElementById('editWordId').value = w.id;
+  document.getElementById('editWord').value = w.word || '';
+  document.getElementById('editMeaningJa').value = w.meaningJa || '';
+  document.getElementById('editExampleEn').value = w.exampleEn || '';
+  document.getElementById('editExampleJa').value = w.exampleJa || '';
+  document.getElementById('editEtymology').value = w.etymology || '';
+  document.getElementById('editPrefix').value = w.prefix || '';
+  document.getElementById('editSuffix').value = w.suffix || '';
+  document.getElementById('editMnemonic').value = w.mnemonic || '';
+  document.getElementById('editMemoryTip').value = w.memoryTip || '';
+  document.getElementById('editMemo').value = w.memo || '';
+  document.getElementById('editWordModal').classList.add('open');
+}
+
+function saveEditWord() {
+  const id = document.getElementById('editWordId').value;
+  const words = getWords();
+  const idx = words.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  words[idx] = {
+    ...words[idx],
+    word:      document.getElementById('editWord').value.trim(),
+    meaningJa: document.getElementById('editMeaningJa').value.trim(),
+    exampleEn: document.getElementById('editExampleEn').value.trim(),
+    exampleJa: document.getElementById('editExampleJa').value.trim(),
+    etymology: document.getElementById('editEtymology').value.trim(),
+    prefix:    document.getElementById('editPrefix').value.trim(),
+    suffix:    document.getElementById('editSuffix').value.trim(),
+    mnemonic:  document.getElementById('editMnemonic').value.trim(),
+    memoryTip: document.getElementById('editMemoryTip').value.trim(),
+    memo:      document.getElementById('editMemo').value.trim(),
+  };
+  localStorage.setItem(STORE_KEY, JSON.stringify(words));
+  closeEditWord();
+  renderWordList(document.querySelector('.search-box')?.value || '');
+  showToast('更新しました');
+}
+
+function closeEditWord() { document.getElementById('editWordModal').classList.remove('open'); }
+function closeEditWordOnOverlay(e) { if (e.target === e.currentTarget) closeEditWord(); }
+
+// ══════════════════════════════════════════════
+// REGEN / EDIT SECTIONS (登録前 暗記サポート)
+// ══════════════════════════════════════════════
+async function regenSection(section) {
+  const systemMsg = 'あなたは英語語彙教師です。JSONのみ返してください。余計なテキスト不要。';
+  const prevMnemonic = document.getElementById('memMnemonic')?.textContent || '';
+  const prevTip      = document.getElementById('memTip')?.textContent || '';
+  const prevEtym     = document.getElementById('memEtym')?.textContent || '';
+  const prevAffix    = document.getElementById('memAffix')?.textContent || '';
+
+  const prompts = {
+    mnemonic: `英単語「${currentWord}」の日本人向けゴロ合わせ・記憶術を1つ、前回（${prevMnemonic}）と異なる発想で提案してください。\n{"mnemonic":"..."}`,
+    tip:      `英単語「${currentWord}」の覚え方ヒントを1つ、前回（${prevTip}）と異なる視点で提案してください。\n{"memoryTip":"..."}`,
+    affix:    `英単語「${currentWord}」の語源・接頭語・接尾語を、前回（語源:${prevEtym} 接辞:${prevAffix}）と異なる説明・角度で提案してください。\n{"prefix":"...","suffix":"...","etymology":"..."}`,
+  };
+
+  const displayEl = section === 'mnemonic' ? document.getElementById('memMnemonic')
+                  : section === 'tip'      ? document.getElementById('memTip')
+                  :                          document.getElementById('memEtym');
+  const prevText = displayEl.textContent;
+  displayEl.textContent = '生成中…';
+
+  try {
+    const text = await callClaude([{role:'user', content: prompts[section]}], systemMsg, 250);
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error();
+    const obj = parseClaudeJSON(m[0]);
+
+    if (section === 'mnemonic') {
+      const v = obj.mnemonic || '';
+      displayEl.textContent = v;
+      if (currentWordInfo) currentWordInfo.mnemonic = v;
+    } else if (section === 'tip') {
+      const v = obj.memoryTip || '';
+      displayEl.textContent = v;
+      if (currentWordInfo) currentWordInfo.memoryTip = v;
+    } else {
+      if (currentWordInfo) { currentWordInfo.prefix = obj.prefix || ''; currentWordInfo.suffix = obj.suffix || ''; currentWordInfo.etymology = obj.etymology || ''; }
+      const parts = [];
+      if (obj.prefix && obj.prefix !== 'なし') parts.push('接頭語: ' + obj.prefix);
+      if (obj.suffix && obj.suffix !== 'なし') parts.push('接尾語: ' + obj.suffix);
+      document.getElementById('memEtym').textContent = obj.etymology || '';
+      document.getElementById('memAffix').textContent = parts.join('　　');
+    }
+  } catch(_) {
+    displayEl.textContent = prevText;
+    showToast('再生成に失敗しました');
+  }
+}
+
+function editSection(section) {
+  const area  = document.getElementById(`editArea_${section}`);
+  const input = document.getElementById(`editInput_${section}`);
+  if (!area) return;
+  if (area.style.display === 'block') { area.style.display = 'none'; return; }
+  const vals = {
+    mnemonic: document.getElementById('memMnemonic')?.textContent || '',
+    tip:      document.getElementById('memTip')?.textContent || '',
+    affix:    [document.getElementById('memEtym')?.textContent, document.getElementById('memAffix')?.textContent].filter(Boolean).join('\n'),
+  };
+  input.value = vals[section] || '';
+  area.style.display = 'block';
+  input.focus();
+}
+
+function applyEdit(section) {
+  const val = document.getElementById(`editInput_${section}`)?.value.trim() || '';
+  if (section === 'mnemonic') {
+    document.getElementById('memMnemonic').textContent = val;
+    if (currentWordInfo) currentWordInfo.mnemonic = val;
+  } else if (section === 'tip') {
+    document.getElementById('memTip').textContent = val;
+    if (currentWordInfo) currentWordInfo.memoryTip = val;
+  } else {
+    document.getElementById('memEtym').textContent = val;
+    document.getElementById('memAffix').textContent = '';
+    if (currentWordInfo) { currentWordInfo.etymology = val; currentWordInfo.prefix = ''; currentWordInfo.suffix = ''; }
+  }
+  document.getElementById(`editArea_${section}`).style.display = 'none';
 }
 
 // ══════════════════════════════════════════════
